@@ -1,0 +1,294 @@
+---
+title: "NEOSTAR.subpopulation_comparison"
+author: "Yuanxin Xi and Jing Wang"
+date: "6/4/2021"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    code_folding: "hide"
+---
+
+#### require R/4.0
+
+## load data and sample information
+```{r}
+library(Seurat)
+library(ComplexHeatmap)
+library(readxl)
+library(ggplot2)
+setwd("/projects2/yxi/Tina_Cascone/")
+ll=load("report/SC307.RData/neostar.final.RData")
+
+cells = colnames(sc@assays$integrated@scale.data)
+genes = rownames(sc@assays$integrated@scale.data)
+sample_id = sapply(cells, function(x) strsplit(x, ":", fixed=T)[[1]][1])
+samples = unique(sample_id)
+sample_col = rainbow(length(samples))[c(1,4,7,10,13,2,5,8,11,14,3,6,9,12,15)]
+names(sample_col) = samples
+patient_id = sapply(cells, function(x) strsplit(x, ".", fixed=T)[[1]][1])
+patients = unique(patient_id)
+patient_col = rainbow(length(patients))[c(1,3,5,7,2,4,6)]
+names(patient_col) = patients
+group_id = gsub("[0-9]", "", sapply(sample_id, function(x) strsplit(x, ".", fixed=T)[[1]][2]))
+groups = unique(group_id)
+group_col = rainbow(length(groups))
+names(group_col) = groups
+arm_id = rep("D", length(sample_id))
+names(arm_id) = names(sample_id)
+arm_id[patient_id %in% c("P1", "P2")] = "C" 
+arms = unique(arm_id)
+arm_col = rainbow(length(arms))
+names(arm_col) = arms
+recist_id = rep("SD/PD", length(patient_id))
+recist_id[patient_id %in% c("P4")] = "PR/CR"
+recists = unique(recist_id)
+recist_col = rainbow(length(recists))
+names(recist_col) = recists
+vt = c(51, 80, 45, 0, 41.664, 58.21, 57.9)
+names(vt) = c("P1.T", "P2.T", "P3.1T", "P4.2T", "P5.3T", "P6.4T", "P7.5T")
+
+load("report/SC307.RData/neostar.cell_annotation.RData")
+pid = data.frame(Sample=sample_id, Patient=patient_id,Group=group_id, Arm=arm_id, Cell=cell_ann2[cells], RECIST=recist_id, row.names=cells)
+sdata = sc@assays$integrated@scale.data
+cdata = sc@assays$RNA@data
+
+smoke_info = read.table("doc/sample_smoker_info.txt", row.names=1, header=T, sep="\t", stringsAsFactors=F)[, 1:3]
+```
+
+## proportion test function
+```{r}
+pp_test = function(subpop, pop, arm=NA, group=NA, ssample=NA, cmp=c("Arm"="C_vs_D"), plot_bar=T, DEG=F){
+  barcol = list("Arm"=c("green", "red"), "Group"=c("red", "blue"))
+  folder = sprintf("report/SC307.report_13.neostar.comparison/%s.%s_%s", pop, names(cmp), gsub("/", "_", cmp, fixed=T))
+  dir.create(folder, showWarnings=F)
+  subpop1 = sub(sprintf("%s.", pop), "", subpop, fixed=T)
+  name = sprintf("%s_%s.%s.out_of.%s", names(cmp), cmp, subpop1, pop)
+  pid0 = pid[grepl(sprintf("%s.", pop), pid$Cell, fixed=T), , drop=F]
+  if(!is.na(arm)){
+    pid0 = pid0[pid0$Arm==arm, , drop=F]
+    name = paste0(name, sprintf(".Arm_%s", arm))
+  }
+  if(!is.na(group)){
+    pid0 = pid0[pid0$Group==group, , drop=F]
+    name = paste0(name, sprintf(".Group_%s", group))
+  }
+  if(!is.na(ssample)){
+    pid0 = pid0[pid0$Sample==ssample, , drop=F]
+    name = paste0(name, sprintf(".Sample_%s", ssample))
+  }
+  show(name)
+  gg = strsplit(cmp, "_vs_")[[1]]
+  pid1 = pid0[pid0[, names(cmp)]==gg[1], , drop=F]
+  pid2 = pid0[pid0[, names(cmp)]==gg[2], , drop=F]
+  pid0a = pid0[grepl(subpop, pid0$Cell, fixed=T), , drop=F]
+  pid1a = pid0a[pid0a[, names(cmp)]==gg[1], , drop=F]
+  pid2a = pid0a[pid0a[, names(cmp)]==gg[2], , drop=F]
+  #if(DEG) DEG_test(pid1a, pid2a, names(cmp), folder, name)
+  n1 = nrow(pid1a); n2 = nrow(pid2a); N1 = nrow(pid1); N2 = nrow(pid2)
+  main = sprintf("%s\n%s %s: %d / %d = %.3g%%", name, names(cmp), gg[1], n1, N1, n1*100/N1)
+  main = sprintf("%s\n%s %s: %d / %d = %.3g%%", main, names(cmp), gg[2], n2, N2, n2*100/N2)
+  sample2patient = sapply(samples, function(x) strsplit(x, ".", fixed=T)[[1]][1])
+  NN1 = table(pid0$Sample); nn1 = table(pid0a$Sample)
+  NN2 = table(pid0$Patient); nn2 = table(pid0a$Patient)
+  patients_ordered = list("Smoking"=c("P1", "P2", "P4", "P5", "P3", "P6", "P7"), "MPR"=c("P4", "P1", "P2", "P3", "P5", "P6", "P7"), "Driver"=patients)
+  if(plot_bar){
+    pval = prop.test(c(n1, n2), c(N1, N2))$p.value
+    show(c(n1, N1, n2, N2))
+    show(c(n1*100/N1, n2*100/N2, pval))
+    main = sprintf("%s\nProportion test p-value: %.2e", main, pval)
+    pdf(sprintf("%s/%s.barplot.pdf", folder, gsub("/", "_", name, fixed=T)), width=14)
+    par(mar=c(5.1,4.1,8.1,16.1), mfrow=c(1, 2))
+    mm = matrix(c(n1, n2, N1-n1, N2-n2), ncol=2)
+    barplot(t(mm), las=1, names.arg=paste(names(cmp), gg), ylab="Count", col=c("orange", "lightgray"))
+    legend(2.5, max(rowSums(mm)), c(subpop, pop), col=c("orange", "lightgray"), pch=15, xpd=TRUE)
+    mm1 = mm[, 1] / rowSums(mm) * 100
+    barplot(mm1, las=1, names.arg=paste(names(cmp), gg), ylab="Percentage", col=barcol[[names(cmp)]])
+    title(main, line=-6, outer=T)
+    par(mfrow=c(1, 1))
+    for(ff in colnames(smoke_info)){
+      ffs = smoke_info[, ff]
+      ff_col = 1:length(unique(ffs))
+      names(ff_col) = sort(unique(ffs))
+      mm = matrix(0, nrow=2, ncol=length(samples))
+      colnames(mm) = samples
+      mm[1, names(nn1)] = nn1
+      mm[2, names(NN1)] = NN1
+      mm1 = mm[1, ] * 100 / mm[2, ]
+      barplot(mm1, las=1, names.arg=samples, ylab="Percentage", col=ff_col[smoke_info[sample2patient, ff]], main=sprintf("By sample\n %s", ff), xlab="Sample")
+      legend(length(mm1)*1.2, max(mm1), names(ff_col), col=ff_col, pch=15, xpd=TRUE)
+      mm = matrix(0, nrow=2, ncol=length(patients))
+      colnames(mm) = patients_ordered[[ff]]
+      mm[1, names(nn2)] = nn2
+      mm[2, names(NN2)] = NN2
+      mm1 = mm[1, ] * 100 / mm[2, ]
+      barplot(mm1, las=1, names.arg=patients_ordered[[ff]], ylab="Percentage", col=ff_col[smoke_info[patients_ordered[[ff]], ff]], main=sprintf("By patient\n %s", ff), xlab="Patient")
+      legend(length(mm1)*1.2, max(mm1), names(ff_col), col=ff_col, pch=15, xpd=TRUE)
+    }
+    dev.off()
+  } else {show(c(n1, N1, n2, N2))}
+  return(c(n1, N1, n2, N2))
+}
+```
+
+## DEG analysis
+```{r}
+DEG_test = function(p1, p2, cmpname, folder, name, subsample=0, FDR=0.05, log2FC=1){
+  show(c("##DEG analysis")); gc()
+  show(c(nrow(p1), nrow(p2)))
+  name = gsub("/", "_", name, fixed=T)
+  folder = sub("report/SC307.report_13.neostar.comparison", "report/SC307.report_13.neostar.comparison/DEG_analysis", folder, fixed=T)
+  dir.create(folder, showWarnings=F)
+  if(min(nrow(p1), nrow(p2)) <= 10) {
+    return(data.frame(Gene=character(), FDR=double(), log2FC=double(), Mean1=double(), Mean2=double(), Pct1=double(), Pct2=double()))
+  }
+  genes = rownames(sdata)
+  d1 = sdata[, rownames(p1), drop=F]; d2 = sdata[, rownames(p2), drop=F]
+  c1 = cdata[genes, rownames(p1), drop=F]; c2 = cdata[genes, rownames(p2), drop=F]
+  d1s = d1; d2s=d2
+  if(subsample>0) {
+    d1s = d1[, sample(colnames(d1), min(subsample, ncol(d1)))]
+    d2s = d2[, sample(colnames(d2), min(subsample, ncol(d2)))]
+  }
+  pvals = sapply(genes, function(x) wilcox.test(d1[x, ], d2[x, ])$p.value)
+  fdr = p.adjust(pvals)
+  log2fc = rowMeans(d1) - rowMeans(d2)
+  pct1 = rowSums(c1>0) * 100 / ncol(c1); pct2 = rowSums(c2>0) * 100 / ncol(c2)
+  data_test = data.frame(Gene=rownames(d1), FDR=fdr, Pval=pvals, log2FC=log2fc, Mean1=rowMeans(d1), Mean2=rowMeans(d2), Pct1=pct1, Pct2=pct2)
+  data_test = data_test[order(data_test$FDR), ]
+  write.table(data_test, file=sprintf("%s/%s.DEG.FDR_%.2g.log2FC_%.2g.all_gene.tsv", folder, name, FDR, log2FC), quote=F, row.names=F, sep="\t")
+  data_diff = data_test[data_test$FDR <= FDR & abs(data_test$log2FC) >=log2FC, , drop=F]
+  write.table(data_diff, file=sprintf("%s/%s.DEG.FDR_%.2g.log2FC_%.2g.diff_gene.tsv", folder, name, FDR, log2FC), quote=F, row.names=F, sep="\t")
+  show(dim(data_diff))
+  if(nrow(data_diff)>0){
+    dd = cbind(d1, d2)[data_diff$Gene, , drop=F]
+    cmp_id = c(p1[, cmpname], p2[, cmpname])
+    DEG_heatmap(dd, sprintf("%s/%s.DEG.FDR_%.2g.log2FC_%.2g", folder, name, FDR, log2FC))
+    DEG_vlnplot(dd, data_diff, sprintf("%s/%s.DEG.FDR_%.2g.log2FC_%.2g", folder, name, FDR, log2FC), cmp_id, cmpname)
+    DEG_vcnplot(data_test, data_diff, sprintf("%s/%s.DEG.FDR_%.2g.log2FC_%.2g", folder, name, FDR, log2FC), FDR, log2FC)
+  }
+  return(data_diff)
+}
+```
+
+## comparisons function
+```{r}
+cmp_pop = function(pop, outofpop=NA){
+  if(is.na(outofpop)) outofpop = pop
+  show(c(pop, outofpop))
+  pops = unique(pid$Cell)
+  pops = pops[grepl(sprintf("%s.", pop), pops, fixed=T)]
+  show(pops)
+  subpops = sub(sprintf("%s.", pop), "", pops, fixed=T)
+  subpops = paste(pop, unique(sapply(subpops, function(x) strsplit(x, ".", fixed=T)[[1]][1])), sep=".")
+  show(subpops)
+  for(subpop in subpops){
+    pp_test(subpop, outofpop, group="T", cmp=c("Arm"="C_vs_D"), DEG=!is.na(outofpop))
+    #pp_test(subpop, outofpop, group="T", cmp=c("RECIST"="SD/PD_vs_PR/CR"), DEG=F)
+    pp_test(subpop, outofpop, cmp=c("Group"="T_vs_N"), DEG=F)
+    pp_test(subpop, outofpop, arm="C", cmp=c("Group"="T_vs_N"), DEG=!is.na(outofpop))
+    pp_test(subpop, outofpop, arm="D", cmp=c("Group"="T_vs_N"), DEG=!is.na(outofpop))
+    vt_cor(subpop, outofpop)
+  }
+}
+
+vt_cor = function(subpop, outofpop){
+  folder = sprintf("report/SC307.report_13.neostar.comparison/%s.VT_correlation", outofpop)
+  dir.create(folder, showWarnings=F)
+  name = sprintf("%s.out_of.%s.VT_correlation", subpop, outofpop)
+  show(name)
+  prp = vt
+  for(pp in names(prp)){
+    nn = pp_test(subpop, outofpop, group="T", ssample=pp, cmp=c("Arm"="C_vs_D"), plot_bar=F)
+    prp[pp] = (nn[1] + nn[3]) * 100 / (nn[2] + nn[4])
+  }
+  cc = cor(vt, prp, method="spearman")
+  pval = cor.test(vt, prp, method="spearman")$p.value
+  show(vt)
+  show(prp)
+  show(cc)
+  pdf(sprintf("%s/%s.pdf", folder, gsub("/", "_", name, fixed=T)))
+  plot(vt, prp, pch=16, col=sample_col[names(vt)], main=sprintf("%s\nSpearman Correlation: %.3g\nCorrelation test p-value: %.2g", name, cc, pval), xlab="% VT", ylab="% Subpopulation")
+  text(vt, prp, labels=names(vt), pos=3, offset=0.3)
+  grid()
+  
+    for(ff in colnames(smoke_info)){
+      ffs = smoke_info[, ff]
+      ff_col = 1:length(unique(ffs))
+      names(ff_col) = sort(unique(ffs))
+      pt = sapply(names(vt), function(x) strsplit(x, ".", fixed=T)[[1]][1])
+  plot(vt, prp, pch=16, col=ff_col[smoke_info[pt, ff]], main=ff, xlab="% VT", ylab="% Subpopulation")
+  text(vt, prp, labels=names(vt), pos=3, offset=0.3)
+  grid()
+      legend("topright", names(ff_col), col=ff_col, pch=15)
+    }
+  
+  dev.off()
+}
+```
+
+## comparisons
+```{r}
+cmp_pop("Lymphoid")
+cmp_pop("Myeloid")
+cmp_pop("Proliferating")
+cmp_pop("Lymphoid.CD4+ T")
+cmp_pop("Lymphoid.CD8+ T")
+cmp_pop("Lymphoid.Innate")
+cmp_pop("Lymphoid.CD4+ T", outofpop="Lymphoid")
+cmp_pop("Lymphoid.CD8+ T", outofpop="Lymphoid")
+cmp_pop("Lymphoid.Innate", outofpop="Lymphoid")
+```
+
+## heatmap
+```{r}
+DEG_heatmap= function(dd, filename){
+  pdf(sprintf("%s.diff_gene.heatmap.pdf", filename), height=nrow(dd)/6+2)
+  gid = group_id[colnames(dd)]; aid = arm_id[colnames(dd)]; sid = sample_id[colnames(dd)]
+  ha = HeatmapAnnotation(df=data.frame(Sample=sid, Group=gid, Arm=aid), col=list("Sample"=sample_col, "Group"=group_col, "Arm"=arm_col))
+  show(Heatmap(dd, cluster_rows=F, show_row_dend=F, cluster_columns=F, show_column_names=F, top_annotation=ha, name="Expression",  row_names_gp=gpar(fontsize=6)))
+  dev.off()
+}
+
+library(ggplot2)
+DEG_vlnplot= function(dd, ddf, filename, cmp_id, cmp_name){
+  pdf(sprintf("%s.diff_gene.vlnplot.pdf", filename))
+  gid = group_id[colnames(dd)]; aid = arm_id[colnames(dd)]; sid = sample_id[colnames(dd)]
+  rownames(ddf) = ddf$Gene
+  gene_group = list("All diff gene average"=ddf$Gene, "Up gene average"=ddf$Gene[ddf$log2FC>0], "Down gene average"=ddf$Gene[ddf$log2FC<0])
+  name = strsplit(filename, "/", fixed=T)[[1]]
+  name = strsplit(name[length(name)], ".DEG", fixed=T)[[1]][1]
+  for(gg in c(names(gene_group), rownames(dd))){
+    if(gg %in% names(gene_group)){
+      df = data.frame(Exp=colMeans(dd[gene_group[[gg]], , drop=F]), Group=factor(cmp_id, levels=unique(cmp_id)))
+      title = sprintf("%s\n%s", name, gg)
+    } else {
+      df = data.frame(Exp=dd[gg, ], Group=factor(cmp_id, levels=unique(cmp_id)))
+      title = sprintf("%s\n%s\nFDR: %.2e  log2FC: %.2f", name, gg, ddf[gg, "FDR"], ddf[gg, "log2FC"])
+    }
+    show(ggplot(df, aes(x=Group, y=Exp)) + geom_violin(trim=F, scale="width", show.legend=T, size=0.75) + geom_boxplot(width=0.1, color="grey", alpha=0.2) + labs(title=title, x=cmp_name, y="Exp"))
+#+ theme(text=element_text(size=20, face="bold"), axis.text=element_text(size=20, face="bold"), axis.line.y=element_line(size=1), axis.line.x=element_line(size=1), axis.ticks=element_line(size=1), plot.title = element_text(size=24))
+  }
+  dev.off()
+}
+
+
+DEG_vcnplot= function(dtest, ddiff, filename, FDR, log2FC){
+  name = strsplit(filename, "/", fixed=T)[[1]]
+  name = strsplit(name[length(name)], ".DEG", fixed=T)[[1]][1]
+  pdf(sprintf("%s.diff_gene.volcano.pdf", filename))
+  plot(dtest$log2FC, -log10(dtest$FDR), xlab="log2 fold change", ylab="-log10 FDR", pch=20, cex=0.5, main=name)
+  points(ddiff$log2FC[ddiff$log2FC<0], -log10(ddiff$FDR[ddiff$log2FC<0]), pch=20, col="red")
+  points(ddiff$log2FC[ddiff$log2FC>0], -log10(ddiff$FDR[ddiff$log2FC>0]), pch=20, col="green")
+  text(ddiff$log2FC, -log10(ddiff$FDR), ddiff$Gene, pos=1, cex=0.7)
+  abline(h=-log10(FDR), lty=2, col="blue")
+  abline(v=c(-log2FC, log2FC), lty=2, col="blue")
+  dev.off()
+}
+```
+
+
+# Appendix
+```{r}
+sessionInfo()
+```
