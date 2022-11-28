@@ -1,5 +1,5 @@
 ---
-title: "NEOSTAR.subpopulation_comparison"
+title: "NeoImmuno.subpopulation_comparison"
 author: "Yuanxin Xi and Jing Wang"
 date: "6/4/2021"
 output: 
@@ -18,7 +18,7 @@ library(ComplexHeatmap)
 library(readxl)
 library(ggplot2)
 setwd("/projects2/yxi/Tina_Cascone/")
-ll=load("report/SC307.RData/neostar.final.RData")
+ll=load("report/SC307.RData/neoimmuno.final.RData")
 
 cells = colnames(sc@assays$integrated@scale.data)
 genes = rownames(sc@assays$integrated@scale.data)
@@ -48,7 +48,7 @@ names(recist_col) = recists
 vt = c(51, 80, 45, 0, 41.664, 58.21, 57.9)
 names(vt) = c("P1.T", "P2.T", "P3.1T", "P4.2T", "P5.3T", "P6.4T", "P7.5T")
 
-load("report/SC307.RData/neostar.cell_annotation.RData")
+load("report/SC307.RData/neoimmuno.cell_annotation.RData")
 pid = data.frame(Sample=sample_id, Patient=patient_id,Group=group_id, Arm=arm_id, Cell=cell_ann2[cells], RECIST=recist_id, row.names=cells)
 sdata = sc@assays$integrated@scale.data
 cdata = sc@assays$RNA@data
@@ -60,7 +60,7 @@ smoke_info = read.table("doc/sample_smoker_info.txt", row.names=1, header=T, sep
 ```{r}
 pp_test = function(subpop, pop, arm=NA, group=NA, ssample=NA, cmp=c("Arm"="C_vs_D"), plot_bar=T, DEG=F){
   barcol = list("Arm"=c("green", "red"), "Group"=c("red", "blue"))
-  folder = sprintf("report/SC307.report_13.neostar.comparison/%s.%s_%s", pop, names(cmp), gsub("/", "_", cmp, fixed=T))
+  folder = sprintf("report/SC307.report_13.neoimmuno.comparison/%s.%s_%s", pop, names(cmp), gsub("/", "_", cmp, fixed=T))
   dir.create(folder, showWarnings=F)
   subpop1 = sub(sprintf("%s.", pop), "", subpop, fixed=T)
   name = sprintf("%s_%s.%s.out_of.%s", names(cmp), cmp, subpop1, pop)
@@ -137,7 +137,7 @@ DEG_test = function(p1, p2, cmpname, folder, name, subsample=0, FDR=0.05, log2FC
   show(c("##DEG analysis")); gc()
   show(c(nrow(p1), nrow(p2)))
   name = gsub("/", "_", name, fixed=T)
-  folder = sub("report/SC307.report_13.neostar.comparison", "report/SC307.report_13.neostar.comparison/DEG_analysis", folder, fixed=T)
+  folder = sub("report/SC307.report_13.neoimmuno.comparison", "report/SC307.report_13.neoimmuno.comparison/DEG_analysis", folder, fixed=T)
   dir.create(folder, showWarnings=F)
   if(min(nrow(p1), nrow(p2)) <= 10) {
     return(data.frame(Gene=character(), FDR=double(), log2FC=double(), Mean1=double(), Mean2=double(), Pct1=double(), Pct2=double()))
@@ -193,7 +193,7 @@ cmp_pop = function(pop, outofpop=NA){
 }
 
 vt_cor = function(subpop, outofpop){
-  folder = sprintf("report/SC307.report_13.neostar.comparison/%s.VT_correlation", outofpop)
+  folder = sprintf("report/SC307.report_13.neoimmuno.comparison/%s.VT_correlation", outofpop)
   dir.create(folder, showWarnings=F)
   name = sprintf("%s.out_of.%s.VT_correlation", subpop, outofpop)
   show(name)
