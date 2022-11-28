@@ -1,5 +1,5 @@
 ---
-title: "NEOPSTAR.lineage_identification"
+title: "NeoImmuno.lineage_identification"
 author: "Yuanxin Xi and Jing Wang"
 date: "6/2/2022"
 output: 
@@ -19,17 +19,17 @@ library(ggplot2)
 library(png)
 library(grid)
 setwd("/projects2/yxi/Tina_Cascone/")
-ll = load("report/SC307.RData/neostar.final_no_prolif.RData")
+ll = load("report/SC307.RData/neoimmuno.final_no_prolif.RData")
 data = as.matrix(sc@assays$RNA@data)
 sdata = as.matrix(sc@assays$integrated@scale.data)
-load("report/SC307.RData/neostar.cell_annotation.RData")
+load("report/SC307.RData/neoimmuno.cell_annotation.RData")
 cid = sapply(cell_ann2[colnames(sc)], function(x) strsplit(x, ".", fixed=T)[[1]][1])
 cids = unique(cid)
 cell_col = c("Lymphoid"="hotpink", "Myeloid"="green2", "Stromal"="deepskyblue", "Epithelial"="orange", "Proliferating"="grey")
 cid1 = sapply(gsub("Stromal.", "", cell_ann[colnames(sc)], fixed=T), function(x) strsplit(x, ".", fixed=T)[[1]][1])
 cids1 = unique(cid1)
 
-pdf(sprintf("report/SC307.report_12.neostar.figure/Major_lineage.umap_plot.pdf"), width=8, height=8)
+pdf(sprintf("report/SC307.report_12.neoimmuno.figure/Major_lineage.umap_plot.pdf"), width=8, height=8)
 plot(umap[, 1], umap[, 2], pch=20, xlab="UMAP1", ylab="UMAP2", cex.axis=1.5, cex.lab=1.5, cex.main=1.5, cex=0.3, font.axis=1.5, font.lab=1.5, main=sprintf("Total cells (n = %d)", nrow(umap)), las=1, col=cell_col[cid], xlim=c(min(umap[,1]), max(umap[, 1])))
 pos = 2
 for(c in cids1){
@@ -52,7 +52,7 @@ cid2s = unique(cid2)
 cid2_col = sample(rainbow(length(cid2s)))
 names(cid2_col) = cid2s
 
-pdf(sprintf("report/SC307.report_12.neostar.figure/Major_lineage.umap_plot1.pdf"), width=8, height=8)
+pdf(sprintf("report/SC307.report_12.neoimmuno.figure/Major_lineage.umap_plot1.pdf"), width=8, height=8)
 plot(umap[, 1], umap[, 2], pch=20, xlab="UMAP1", ylab="UMAP2", cex.axis=1.5, cex.lab=1.5, cex.main=1.5, cex=0.3, font.axis=1.5, font.lab=1.5, main=sprintf("Total cells (n = %d)", nrow(umap)), las=1, col=cid2_col[cid2], xlim=c(min(umap[,1]), max(umap[, 1])))
 pos = 2
 for(c in cid2s){
@@ -88,7 +88,7 @@ label[label %in% misc] = "Misc"
 labels = unique(label)
 label_col = rainbow(length(labels))
 names(label_col) = labels
-pdf("report/SC307.report_12.neostar.figure/singleR/annotation2.pdf", width=9, height=8)
+pdf("report/SC307.report_12.neoimmuno.figure/singleR/annotation2.pdf", width=9, height=8)
 plot(umap[,1], umap[,2], pch=20, xlab="UMAP1", ylab="UMAP2", cex.axis=1.5, cex.lab=1.5, cex.main=1.5, cex=0.3, font.axis=1.5, font.lab=1.5, main=sprintf("Pooled samples(n = %d)", nrow(umap)), las=1, col=label_col[label])
 legend("topright", legend=labels, pch=16, col=label_col, cex=0.8)
 
@@ -124,20 +124,20 @@ feature_plot_png2 = function(gname, gdata, folder=".") {
   unlink(gtmp, recursive=T)
 }
 
-feature_plot_png2("Human_Prime_Cell", sr1$scores, folder="report/SC307.report_12.neostar.figure/singleR") 
-feature_plot_png2("Immune_Cell", sr2$scores, folder="report/SC307.report_12.neostar.figure/singleR") 
+feature_plot_png2("Human_Prime_Cell", sr1$scores, folder="report/SC307.report_12.neoimmuno.figure/singleR") 
+feature_plot_png2("Immune_Cell", sr2$scores, folder="report/SC307.report_12.neoimmuno.figure/singleR") 
 
 ```
 
 ## project to previous cluster
 ```{r}
-cell_cluster1 = gsub(".C", ".", gsub("cluster", "C", gsub("neostar.", "", cell_cluster[colnames(sc)], fixed=T), fixed=T), fixed=T)
+cell_cluster1 = gsub(".C", ".", gsub("cluster", "C", gsub("neoimmuno.", "", cell_cluster[colnames(sc)], fixed=T), fixed=T), fixed=T)
 cid2 = sapply(cell_cluster1, function(x) strsplit(x, ".", fixed=T)[[1]][1])
 cids2 = unique(cid2)
 cid2_col = rainbow(length(cids2))
 names(cid2_col) = cids2
 
-pdf(sprintf("report/SC307.report_12.neostar.figure/Cluster_projection.umap_plot.pdf"), width=8, height=8)
+pdf(sprintf("report/SC307.report_12.neoimmuno.figure/Cluster_projection.umap_plot.pdf"), width=8, height=8)
 plot(umap[, 1], umap[, 2], pch=20, xlab="UMAP1", ylab="UMAP2", cex.axis=1.5, cex.lab=1.5, cex.main=1.5, cex=0.3, font.axis=1.5, font.lab=1.5, main=sprintf("Total cells (n = %d)", nrow(umap)), las=1, col=cid2_col[cid2])
 for(c in cids2){
   dd = colMeans(umap[cid2==c, ])
@@ -257,7 +257,7 @@ return(df)
 
 markers = list("Lymphoid"=c("PTPRC", "CD3E", "CD40LG", "CD8A", "CD8B", "CD19", "CD79A", "MS4A1", "GZMA", "GZMB", "NCAM1", "KLRB1", "KLRC1"), "Myeloid"=c("CD14", "CD68", "CD1C", "S100A8", "S100A9", "MS4A2", "ITGAX", "LILRB4", "LILRA4"), "Stromal"=c("CLDN5", "COL1A2", "COL1A1", "ACTA2", "PDGFRB", "ACKR1"), "Epithelial"=c("EPCAM", "NKX2-1", "KRT17", "KRT8", "MUC5B"))
 
-df = bubble_plot_landscape("Major_lineage", markers, cid, folder=sprintf("report/SC307.report_12.neostar.figure/"), groups=c("Lymphoid"="Lymphoid", "Myeloid"="Myeloid", "Stromal"="Stromal", "Epithelial"="Epithelial"), size=c(10, 2.5), lim=1)
+df = bubble_plot_landscape("Major_lineage", markers, cid, folder=sprintf("report/SC307.report_12.neoimmuno.figure/"), groups=c("Lymphoid"="Lymphoid", "Myeloid"="Myeloid", "Stromal"="Stromal", "Epithelial"="Epithelial"), size=c(10, 2.5), lim=1)
 ```
 
 ## Sub Lineages
@@ -267,14 +267,14 @@ library(ComplexHeatmap)
 library(readxl)
 library(ggplot2)
 setwd("/projects2/yxi/Tina_Cascone/")
-ll = load("report/SC307.RData/neostar.final_no_prolif.RData")
+ll = load("report/SC307.RData/neoimmuno.final_no_prolif.RData")
 cid0 = sapply(cell_ann2[colnames(sc)], function(x) strsplit(x, ".", fixed=T)[[1]][2])
 umap0 = umap
 cc = "Epithelial"
-ll = load(sprintf("report/SC307.RData/neostar.%s.RData", cc)); gc()
+ll = load(sprintf("report/SC307.RData/neoimmuno.%s.RData", cc)); gc()
 data = as.matrix(sc@assays$RNA@data)
 sdata = as.matrix(sc@assays$integrated@scale.data)
-load("report/SC307.RData/neostar.cell_annotation.RData")
+load("report/SC307.RData/neoimmuno.cell_annotation.RData")
 umap = sc@reductions$umap@cell.embeddings
 cid = sapply(cell_ann2[colnames(sc)], function(x) strsplit(x, ".", fixed=T)[[1]][2])
 cid1 = cid0
@@ -287,7 +287,7 @@ cids = unique(cid)
 cell_col = rainbow(length(cids))
 names(cell_col) = cids
 
-pdf(sprintf("report/SC307.report_12.neostar.figure/%s.umap_plot.pdf", cc), width=8, height=8)
+pdf(sprintf("report/SC307.report_12.neoimmuno.figure/%s.umap_plot.pdf", cc), width=8, height=8)
 plot(umap[, 1], umap[, 2], pch=20, xlab="UMAP1", ylab="UMAP2", cex.axis=1.5, cex.lab=1.5, cex.main=1.5, cex=0.3, font.axis=1.5, font.lab=1.5, main=sprintf("Total cells (n = %d)", nrow(umap)), las=1, col=cell_col[cid], xlim=c(min(umap[,1]), max(umap[, 1])))
 pos = 0
 for(c in cids){
@@ -321,7 +321,7 @@ groups = list(
 sizes = list("Myeloid"=c(6, 10), "Lymphoid"=c(4, 8.5), "Proliferating"=c(4, 10))
 sizes = list("Myeloid"=c(13, 4), "Lymphoid"=c(10, 2.5), "Proliferating"=c(12, 2.5))
 
-df = bubble_plot_landscape(cc, markers[[cc]], cid, folder=sprintf("report/SC307.report_12.neostar.figure/"), size=sizes[[cc]], groups=groups[[cc]], lim=1)
+df = bubble_plot_landscape(cc, markers[[cc]], cid, folder=sprintf("report/SC307.report_12.neoimmuno.figure/"), size=sizes[[cc]], groups=groups[[cc]], lim=1)
 ```
 
 
@@ -332,15 +332,15 @@ library(ComplexHeatmap)
 library(readxl)
 library(ggplot2)
 setwd("/projects2/yxi/Tina_Cascone/")
-ll = load("report/SC307.RData/neostar.final_no_prolif.RData")
+ll = load("report/SC307.RData/neoimmuno.final_no_prolif.RData")
 umap0 = umap
-ll = load("report/SC307.RData/neostar.Lymphoid.RData")
+ll = load("report/SC307.RData/neoimmuno.Lymphoid.RData")
 umap1 = umap
 cc = "CD8+ T"
-ll = load(sprintf("report/SC307.RData/neostar.Lymphoid.%s.RData", cc))
+ll = load(sprintf("report/SC307.RData/neoimmuno.Lymphoid.%s.RData", cc))
 data = as.matrix(sc@assays$RNA@data)
 sdata = as.matrix(sc@assays$integrated@scale.data)
-load("report/SC307.RData/neostar.cell_annotation.RData")
+load("report/SC307.RData/neoimmuno.cell_annotation.RData")
 cells = colnames(sc)
 cid = sapply(cell_ann2[cells], function(x) strsplit(x, ".", fixed=T)[[1]][3])
 cids = unique(cid)
@@ -348,7 +348,7 @@ cell_col = rainbow(length(cids))
 names(cell_col) = cids
 for(cn in names(cell_col)) show(cell_col[cn])
 
-pdf(sprintf("report/SC307.report_12.neostar.figure/Lymphoid.%s.umap_plot.pdf", cc), width=8, height=8)
+pdf(sprintf("report/SC307.report_12.neoimmuno.figure/Lymphoid.%s.umap_plot.pdf", cc), width=8, height=8)
 plot(umap[, 1], umap[, 2], pch=20, xlab="UMAP1", ylab="UMAP2", cex.axis=1.5, cex.lab=1.5, cex.main=1.5, cex=0.3, font.axis=1.5, font.lab=1.5, main=sprintf("%s (n = %d)", cc, nrow(umap)), las=1, col=cell_col[cid])
 pos = 0
 for(c in cids){
@@ -393,7 +393,7 @@ groups = list(
 
 sizes = list("CD8+ T"=c(10, 3.5), "Innate"=c(11, 2.5), "CD4+ T"=c(11, 3.5))
 
-df = bubble_plot_landscape(cc, markers[[cc]], cid, folder=sprintf("report/SC307.report_12.neostar.figure/Lymphoid."), size=sizes[[cc]], groups=groups[[cc]], lim=1)
+df = bubble_plot_landscape(cc, markers[[cc]], cid, folder=sprintf("report/SC307.report_12.neoimmuno.figure/Lymphoid."), size=sizes[[cc]], groups=groups[[cc]], lim=1)
 
 ```
 
